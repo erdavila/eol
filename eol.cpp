@@ -143,20 +143,46 @@ public:
 };
 
 
+void showHelp(const char* command) {
+	cout << "Usage: " << command << " OPTIONS [--] FILES..." << endl
+	     << "Options: " << endl
+	     << "  -h|--help      Show this message" << endl
+	     << "  --[no-]dots    Show/Hide colored dots" << endl
+	     << endl
+	     << "File can be \"-\", so standard input is analyzed" << endl
+	     << endl;
+}
+
+
 typedef vector<Command*> Commands;
 
 Commands processArguments(const char** argBegin, const char** argEnd) {
 	Commands commands;
 	int fileCount = 0;
-	for(const char** arg_iterator = argBegin; arg_iterator != argEnd; arg_iterator++) {
+	bool considerOptions = true;
+	
+	for(const char** arg_iterator = argBegin+1; arg_iterator != argEnd; arg_iterator++) {
 		const string arg = *arg_iterator;
-		if(arg == "--dots") {
-			commands.push_back(new SetDots(true));
-		} else if(arg == "--no-dots") {
-			commands.push_back(new SetDots(false));
+		if(considerOptions  &&  arg.size() > 1  &&  arg[0] == '-') {
+			if(arg == "--") {
+				considerOptions = false;
+			} else if(arg == "--dots") {
+				commands.push_back(new SetDots(true));
+			} else if(arg == "--no-dots") {
+				commands.push_back(new SetDots(false));
+			} else if(arg == "-h"  ||  arg == "--help") {
+				showHelp(*argBegin);
+				exit(0);
+			} else {
+				cerr << "Invalid argument: " << arg << endl;
+				exit(1);
+			}
 		} else {
-			const string& filename = arg;
-			commands.push_back(new FileAnalyzer(filename));
+			if(arg == "-") {
+				commands.push_back(new StdinAnalyzer());
+			} else {
+				commands.push_back(new FileAnalyzer(arg));
+			}
 			fileCount++;
 		}
 	}
@@ -169,7 +195,7 @@ Commands processArguments(const char** argBegin, const char** argEnd) {
 
 
 int main(int argc, const char* argv[]) {
-	Commands commands = processArguments(argv+1, argv+argc);
+	Commands commands = processArguments(argv, argv+argc);
 	
 	Configs configs;
 	for(Command* command : commands) {
