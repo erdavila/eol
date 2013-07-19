@@ -90,22 +90,27 @@ void analyze(istream& is, bool dots = false) {
 }
 
 
+struct Configs {
+	bool dots = false;
+};
+
+
 int main(int argc, const char* argv[]) {
 	int fileCount = 0;
-	bool dots = false;
+	Configs configs;
 	
 	for(int i = 1; i < argc; i++) {
 		const string arg = argv[i];
 		if(arg == "--dots") {
-			dots = true;
+			configs.dots = true;
 		} else if(arg == "--no-dots") {
-			dots = false;
+			configs.dots = false;
 		} else {
 			const string& filename = arg;
 			ifstream ifs(filename.c_str());
 			if(ifs) {
 				cout << "Analyzing file " << filename << endl;
-				analyze(ifs, dots);
+				analyze(ifs, configs.dots);
 			} else {
 				cerr << "Can't open file " << filename << '!' << endl;
 			}
@@ -118,4 +123,3 @@ int main(int argc, const char* argv[]) {
 		analyze(cin);
 	}
 }
-
