@@ -1,6 +1,7 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <vector>
 #include <cstdlib>
 
 using namespace std;
@@ -95,31 +96,83 @@ struct Configs {
 };
 
 
-int main(int argc, const char* argv[]) {
+class Command {
+public:
+	virtual void execute(Configs& configs) =0;
+};
+
+class Analyzer : public Command {
+protected:
+	void analyze(istream& is, Configs& configs) {
+		::analyze(is, configs.dots);
+	}
+};
+
+class FileAnalyzer : public Analyzer {
+private:
+	string filename;
+public:
+	FileAnalyzer(const string& filename) : filename(filename) {}
+	void execute(Configs& configs) {
+		ifstream ifs(filename.c_str());
+		if(ifs) {
+			cout << "Analyzing file " << filename << endl;
+			Analyzer::analyze(ifs, configs);
+		} else {
+			cerr << "Can't open file " << filename << '!' << endl;
+		}
+	}
+};
+
+class StdinAnalyzer : public Analyzer {
+public:
+	void execute(Configs& configs) {
+		cout << "Analyzing standard input" << endl;
+		Analyzer::analyze(cin, configs);
+	}
+};
+
+class SetDots : public Command {
+private:
+	bool dots;
+public:
+	SetDots(bool dots) : dots(dots) {}
+	void execute(Configs& configs) {
+		configs.dots = dots;
+	}
+};
+
+
+typedef vector<Command*> Commands;
+
+Commands processArguments(const char** argBegin, const char** argEnd) {
+	Commands commands;
 	int fileCount = 0;
-	Configs configs;
-	
-	for(int i = 1; i < argc; i++) {
-		const string arg = argv[i];
+	for(const char** arg_iterator = argBegin; arg_iterator != argEnd; arg_iterator++) {
+		const string arg = *arg_iterator;
 		if(arg == "--dots") {
-			configs.dots = true;
+			commands.push_back(new SetDots(true));
 		} else if(arg == "--no-dots") {
-			configs.dots = false;
+			commands.push_back(new SetDots(false));
 		} else {
 			const string& filename = arg;
-			ifstream ifs(filename.c_str());
-			if(ifs) {
-				cout << "Analyzing file " << filename << endl;
-				analyze(ifs, configs.dots);
-			} else {
-				cerr << "Can't open file " << filename << '!' << endl;
-			}
+			commands.push_back(new FileAnalyzer(filename));
 			fileCount++;
 		}
 	}
-	
 	if(fileCount == 0) {
-		cout << "Analyzing standard input" << endl;
-		analyze(cin);
+		commands.push_back(new StdinAnalyzer());
+	}
+	
+	return commands;
+}
+
+
+int main(int argc, const char* argv[]) {
+	Commands commands = processArguments(argv+1, argv+argc);
+	
+	Configs configs;
+	for(Command* command : commands) {
+		command->execute(configs);
 	}
 }
